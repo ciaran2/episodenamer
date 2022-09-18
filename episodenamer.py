@@ -2,6 +2,8 @@
 
 import sys
 import argparse
+import re
+import functools
 import os
 import glob
 import shutil
@@ -13,6 +15,7 @@ def parse_args():
   parser.add_argument("--season", "-s", required=True, help="Season number.")
   parser.add_argument("--min-size", "-m", nargs='?', default="0", help="Minimum size of an episode. Other files will be assumed to be extras")
   parser.add_argument("--extras-dir", "-e", nargs='?', help="Directory where extras are to be placed. Mandatory if --min-size specified.")
+  parser.add_argument("--missing-episodes", nargs="*", help="Ranges of episodes that are not present in the source directories.")
   parser.add_argument("--dry-run", action='store_true', help="Dry run mode. Print intended file moves without executing.")
   parser.add_argument("dirs", nargs="+")
 
@@ -23,6 +26,19 @@ def parse_args():
     print("Extras directory must be specified if a minimum size is defined.", file=sys.stderr)
     parser.print_help()
     exit(1)
+
+  ep_ranges = []
+  if args.missing_episodes:
+    for ep_range_string in args.missing_episodes:
+      ep_range = parse_range(ep_range_string)
+      if ep_range:
+        ep_ranges.append(ep_range)
+      else:
+        print("Invalid format for missing episode range.", file=sys.stderr)
+        parser.print_help()
+        exit(1)
+
+  args.missing_episodes = ep_ranges
 
   return args
 
@@ -41,6 +57,15 @@ def apply_suffix(suffixed_size):
     else:
       raise Exception("Invalid size suffix")
 
+def parse_range(range_string):
+  if re.fullmatch('\d+-\d+', range_string):
+    range_split = range_string.split('-')
+    return range(int(range_split[0]), int(range_split[1])+1)
+  if re.fullmatch('\d+', range_string):
+    return range(int(range_string), int(range_string)+1)
+  else:
+    return None
+
 def ensure_dirs(dest_dir, extras_dir=None, dry_run=False):
   if dry_run:
     if not os.path.exists(dest_dir):
@@ -54,24 +79,28 @@ def ensure_dirs(dest_dir, extras_dir=None, dry_run=False):
       os.makedirs(extras_dir, mode=0o770, exist_ok=True)
 
 
-def collect_episodes(dirs, min_size):
+def collect_episodes(dirs, min_size, missing_eps):
   episodes = []
   extras = []
+  episode_num = 1
 
   for dir in dirs:
     files = sorted(os.listdir(dir))
 
     for file in files:
+      while functools.reduce(lambda x, y: x or y, [episode_num in r for r in missing_eps]):
+        episode_num += 1
       file = "{}/{}".format(dir, file)
       if os.path.getsize(file) > min_size:
-        episodes.append(file)
+        episodes.append((episode_num, file))
+        episode_num += 1
       else:
         extras.append(file)
 
   return episodes, extras
 
 def move_episodes(dest_dir, title, season, episodes, dry_run=False):
-  for i, episode in enumerate(episodes, 1):
+  for i, episode in episodes:
     _, extension = os.path.splitext(episode)
     dest_path = "{}/{} S{}E{}{}".format(dest_dir, title, season, i, extension)
     if dry_run:
@@ -97,7 +126,7 @@ def move_extras(extras_dir, title, extras, dry_run=False):
 def main():
   args = parse_args()
 
-  episodes, extras = collect_episodes(args.dirs, args.min_size)
+  episodes, extras = collect_episodes(args.dirs, args.min_size, args.missing_episodes)
 
   ensure_dirs(args.dest_dir, args.extras_dir, args.dry_run)
   move_episodes(args.dest_dir, args.title, args.season, episodes, args.dry_run)
