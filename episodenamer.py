@@ -73,10 +73,10 @@ def ensure_dirs(dest_dir, extras_dir=None, dry_run=False):
     if extras_dir and not os.path.exists(extras_dir):
       print("Creating path {}".format(extras_dir))
   else:
-    os.makedirs(dest_dir, mode=0o770, exist_ok=True)
+    os.makedirs(dest_dir, mode=0o775, exist_ok=True)
 
     if extras_dir:
-      os.makedirs(extras_dir, mode=0o770, exist_ok=True)
+      os.makedirs(extras_dir, mode=0o775, exist_ok=True)
 
 
 def collect_episodes(dirs, min_size, missing_eps):
