@@ -88,7 +88,7 @@ def collect_episodes(dirs, min_size, missing_eps):
     files = sorted(os.listdir(dir))
 
     for file in files:
-      while functools.reduce(lambda x, y: x or y, [episode_num in r for r in missing_eps]):
+      while functools.reduce(lambda x, y: x or y, [episode_num in r for r in missing_eps], False):
         episode_num += 1
       file = "{}/{}".format(dir, file)
       if os.path.getsize(file) > min_size:
