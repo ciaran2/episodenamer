@@ -10,9 +10,10 @@ import shutil
 
 def parse_args():
   parser = argparse.ArgumentParser()
-  parser.add_argument("--dest-dir", "-d", required=True, help="Destination directory.")
+  parser.add_argument("--base-dir", "-b", required=True, help="Base directory. Directories for show titles and seasons will be created automatically.")
   parser.add_argument("--title", "-t", required=True, help="Title of the show.")
   parser.add_argument("--season", "-s", required=True, help="Season number.")
+  parser.add_argument("--dest-dir", "-d", required=False, help="Destination directory.")
   parser.add_argument("--min-size", "-m", nargs='?', default="0", help="Minimum size of an episode. Other files will be assumed to be extras")
   parser.add_argument("--extras-dir", "-e", nargs='?', help="Directory where extras are to be placed. Mandatory if --min-size specified.")
   parser.add_argument("--missing-episodes", nargs="*", help="Ranges of episodes that are not present in the source directories.")
@@ -21,6 +22,9 @@ def parse_args():
 
   args = parser.parse_args()
   args.min_size = apply_suffix(args.min_size)
+
+  args.dest_dir = "{}/{}/Season {}".format(args.base_dir, args.title, args.season)
+  args.extras_dir = "{}/{}/extras".format(args.base_dir, args.title)
 
   if args.min_size > 0 and not args.extras_dir:
     print("Extras directory must be specified if a minimum size is defined.", file=sys.stderr)
